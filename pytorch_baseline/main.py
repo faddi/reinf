@@ -70,7 +70,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-
 env = gym.make('CartPole-v0').unwrapped
 
 # set up matplotlib
@@ -82,7 +81,6 @@ plt.ion()
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 ######################################################################
 # Replay Memory
@@ -103,12 +101,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #    method for selecting a random batch of transitions for training.
 #
 
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 
 class ReplayMemory(object):
-
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
@@ -201,8 +197,8 @@ class ReplayMemory(object):
 # taking each action given the current input.
 #
 
-class DQN(nn.Module):
 
+class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=5, stride=2)
@@ -230,9 +226,7 @@ class DQN(nn.Module):
 # display an example patch that it extracted.
 #
 
-resize = T.Compose([T.ToPILImage(),
-                    T.Resize(40, interpolation=Image.CUBIC),
-                    T.ToTensor()])
+resize = T.Compose([T.ToPILImage(), T.Resize(40, interpolation=Image.CUBIC), T.ToTensor()])
 
 # This is based on the code from gym.
 screen_width = 600
@@ -245,8 +239,7 @@ def get_cart_location():
 
 
 def get_screen():
-    screen = env.render(mode='rgb_array').transpose(
-        (2, 0, 1))  # transpose into torch order (CHW)
+    screen = env.render(mode='rgb_array').transpose((2, 0, 1))  # transpose into torch order (CHW)
     # Strip off the top and bottom of the screen
     screen = screen[:, 160:320]
     view_width = 320
@@ -256,8 +249,7 @@ def get_screen():
     elif cart_location > (screen_width - view_width // 2):
         slice_range = slice(-view_width, None)
     else:
-        slice_range = slice(cart_location - view_width // 2,
-                            cart_location + view_width // 2)
+        slice_range = slice(cart_location - view_width // 2, cart_location + view_width // 2)
     # Strip off the edges, so that we have a square image centered on a cart
     screen = screen[:, :, slice_range]
     # Convert to float, rescare, convert to torch tensor
@@ -270,11 +262,9 @@ def get_screen():
 
 env.reset()
 plt.figure()
-plt.imshow(get_screen().cpu().squeeze(0).permute(1, 2, 0).numpy(),
-           interpolation='none')
+plt.imshow(get_screen().cpu().squeeze(0).permute(1, 2, 0).numpy(), interpolation='none')
 plt.title('Example extracted screen')
 plt.show()
-
 
 ######################################################################
 # Training
@@ -312,7 +302,6 @@ target_net.eval()
 
 optimizer = optim.RMSprop(policy_net.parameters())
 memory = ReplayMemory(10000)
-
 
 steps_done = 0
 
@@ -371,6 +360,7 @@ def plot_durations():
 # simplicity.
 #
 
+
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
@@ -380,10 +370,9 @@ def optimize_model():
     batch = Transition(*zip(*transitions))
 
     # Compute a mask of non-final states and concatenate the batch elements
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                          batch.next_state)), device=device, dtype=torch.uint8)
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                                if s is not None])
+    non_final_mask = torch.tensor(
+        tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.uint8)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
     state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
