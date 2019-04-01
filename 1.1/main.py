@@ -3,18 +3,21 @@ import gym
 from gym.spaces import Box, Discrete
 
 import numpy as np
+import os
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
+from keras.models import model_from_json
+
 
 
 # from scores.score_logger import ScoreLogger
 
 # ENV_NAME = "CartPole-v1"
-# ENV_NAME = "MountainCar-v0"
+ENV_NAME = "MountainCar-v0"
 # ENV_NAME = "CarRacing-v0"
-ENV_NAME = "Pong-ram-v0"
+# ENV_NAME = "Pong-ram-v0"
 # ENV_NAME = "Pendulum-v0"
 
 GAMMA = 0.95
@@ -37,7 +40,9 @@ class DQNSolver:
         self.memory = deque(maxlen=MEMORY_SIZE)
 
         self.model = Sequential()
-        self.model.add(Dense(16, input_shape=(observation_space,), activation="relu"))
+        print("observation_space:", observation_space)
+        self.model.add(Dense(32, input_shape=(observation_space,), activation="relu"))
+        self.model.add(Dense(32, input_shape=(observation_space,), activation="relu"))
         self.model.add(Dense(self.action_space, activation="linear"))
         self.model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
 
@@ -67,6 +72,24 @@ class DQNSolver:
             #   # print(h.history)
         self.exploration_rate *= EXPLORATION_DECAY
         self.exploration_rate = max(EXPLORATION_MIN, self.exploration_rate)
+    def save(self):
+        # serialize model to JSON
+        model_json = self.model.to_json()
+        with open(ENV_NAME + "_model.json", "w") as json_file:
+            json_file.write(model_json)
+        # serialize weights to HDF5
+        self.model.save_weights(ENV_NAME + "_model.h5")
+        print("Saved model to disk")
+    def load_from_file(self):
+        if os.path.exists(ENV_NAME + '_model.json') and os.path.exists(ENV_NAME + '_model.h5'):
+            json_file = open(ENV_NAME + '_model.json', 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            # load weights into new model
+            loaded_model.load_weights(ENV_NAME + "_model.h5")
+            print("Loaded model from disk")
+            self.model = loaded_model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
 
 
 def cartpole():
@@ -84,9 +107,13 @@ def cartpole():
       action_space = env.action_space.shape
 
     dqn_solver = DQNSolver(observation_space, action_space)
+    # dqn_solver.load_from_file()
     run = 0
     while True:
+        # if run % 10 == 0:
+        #     dqn_solver.save()
         run += 1
+
         state = env.reset()
         state = np.reshape(state, [1, observation_space])
         total_reward = 0

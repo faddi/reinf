@@ -10,6 +10,7 @@ gym = "*"
 keras = "*"
 tensorflow = "*"
 atari-py = "*"
+h5py = "*"
 
 [requires]
 python_version = "3.7"
