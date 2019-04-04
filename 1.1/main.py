@@ -9,16 +9,21 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
 from keras.models import model_from_json
+import gzip
+import pickle
 
 
 
 # from scores.score_logger import ScoreLogger
 
 # ENV_NAME = "CartPole-v1"
-ENV_NAME = "MountainCar-v0"
+# ENV_NAME = "MountainCar-v0"
 # ENV_NAME = "CarRacing-v0"
-# ENV_NAME = "Pong-ram-v0"
+ENV_NAME = "Pong-ram-v0"
 # ENV_NAME = "Pendulum-v0"
+
+MODEL_DESCRIPTION_PATH = ENV_NAME + "_model.json"
+MODEL_WEIGHTS_PATH = ENV_NAME + "_model.h5"
 
 GAMMA = 0.95
 LEARNING_RATE = 0.001
@@ -41,13 +46,20 @@ class DQNSolver:
 
         self.model = Sequential()
         print("observation_space:", observation_space)
-        self.model.add(Dense(32, input_shape=(observation_space,), activation="relu"))
-        self.model.add(Dense(32, input_shape=(observation_space,), activation="relu"))
+        self.model.add(Dense(128, input_shape=(observation_space,), activation="relu"))
+        self.model.add(Dense(128, input_shape=(observation_space,), activation="relu"))
         self.model.add(Dense(self.action_space, activation="linear"))
         self.model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
 
     def remember(self, state, action, reward, next_state, done):
+
         self.memory.append((state, action, reward, next_state, done))
+
+        if len(self.memory) % 1000 == 0:
+            with gzip.GzipFile(ENV_NAME + '_memory.pkl', 'ab') as f:
+                for d in range(len(self.memory) - 1000, len(self.memory)):
+                    pickle.dump(self.memory[d], f)
+
 
     def act(self, state):
         if np.random.rand() < self.exploration_rate:
@@ -75,21 +87,22 @@ class DQNSolver:
     def save(self):
         # serialize model to JSON
         model_json = self.model.to_json()
-        with open(ENV_NAME + "_model.json", "w") as json_file:
+        with open(MODEL_DESCRIPTION_PATH, "w") as json_file:
             json_file.write(model_json)
         # serialize weights to HDF5
-        self.model.save_weights(ENV_NAME + "_model.h5")
+        self.model.save_weights(MODEL_WEIGHTS_PATH)
         print("Saved model to disk")
     def load_from_file(self):
-        if os.path.exists(ENV_NAME + '_model.json') and os.path.exists(ENV_NAME + '_model.h5'):
-            json_file = open(ENV_NAME + '_model.json', 'r')
+        if os.path.exists(MODEL_DESCRIPTION_PATH) and os.path.exists(MODEL_WEIGHTS_PATH):
+            json_file = open(MODEL_DESCRIPTION_PATH, 'r')
             loaded_model_json = json_file.read()
             json_file.close()
             loaded_model = model_from_json(loaded_model_json)
             # load weights into new model
-            loaded_model.load_weights(ENV_NAME + "_model.h5")
+            loaded_model.load_weights(MODEL_WEIGHTS_PATH)
             print("Loaded model from disk")
-            self.model = loaded_model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
+            self.model = loaded_model
+            self.model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
 
 
 def cartpole():
@@ -107,11 +120,11 @@ def cartpole():
       action_space = env.action_space.shape
 
     dqn_solver = DQNSolver(observation_space, action_space)
-    # dqn_solver.load_from_file()
+    dqn_solver.load_from_file()
     run = 0
     while True:
-        # if run % 10 == 0:
-        #     dqn_solver.save()
+        if run % 5 == 0:
+            dqn_solver.save()
         run += 1
 
         state = env.reset()
